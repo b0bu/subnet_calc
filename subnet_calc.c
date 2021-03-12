@@ -144,15 +144,58 @@ void determine_subnet_mask(struct Ip * ip) {
 }
 
 void generate_network_list(struct Ip * ip) {
-    for (int network=0; network<ip->subnet.number_of_networks; network++) {
-        int net = ip->subnet.incrementor[ip->subnet.network_bits-1] * network;
-        int bcast = net + ip->subnet.incrementor[ip->subnet.network_bits-1] - 1;
-        printf("net %d.%d.%d.%d gateway %d.%d.%d.%d first %d.%d.%d.%d last %d.%d.%d.%d bcast %d.%d.%d.%d\n", 
-            ip->octet_1, ip->octet_2, ip->octet_3, net,
-            ip->octet_1, ip->octet_2, ip->octet_3, net+1,
-            ip->octet_1, ip->octet_2, ip->octet_3, net+2,
-            ip->octet_1, ip->octet_2, ip->octet_3, bcast-1,
-            ip->octet_1, ip->octet_2, ip->octet_3, bcast);
+    // print all networks if last octet is .0
+    for (int network=0; network < ip->subnet.number_of_networks; network++) {
+        if (ip->octet_4 == 0) {
+            int increment_by = ip->subnet.incrementor[ip->subnet.network_bits-1] * network;
+            int bcast = increment_by + ip->subnet.incrementor[ip->subnet.network_bits-1] - 1;
+            printf("net %d.%d.%d.%d gateway %d.%d.%d.%d first %d.%d.%d.%d last %d.%d.%d.%d bcast %d.%d.%d.%d\n", 
+                ip->octet_1, ip->octet_2, ip->octet_3, increment_by,
+                ip->octet_1, ip->octet_2, ip->octet_3, increment_by+1,
+                ip->octet_1, ip->octet_2, ip->octet_3, increment_by+2,
+                ip->octet_1, ip->octet_2, ip->octet_3, bcast-1,
+                ip->octet_1, ip->octet_2, ip->octet_3, bcast);
+        } else {
+            // print range networks of networks i.e. if further subnetting an already subnetted range
+            int increment_by = ip->subnet.incrementor[ip->subnet.network_bits-1] * network;
+            int bcast = increment_by + ip->subnet.incrementor[ip->subnet.network_bits-1] - 1;
+
+            /* 
+                ./subnet  192.168.1.0/26
+                net 192.168.1.0 
+                net 192.168.1.64
+                net 192.168.1.128
+                net 192.168.1.192
+
+                LIMITATION
+                ./subnet  192.168.1.64/28
+                from .0-255.0 there are 16 networks in a /28
+                here we're asking for networks 192.168.1.64/26 -> /28
+                there's 4 in that block however the struct doesn't that
+                if you only need a slice of that may network=0 above could be more dynamic?
+                below i've hardcoded 4 for testing since the struct thinks there's 16
+
+                FIX TODO
+                create a start point based on the last octet 
+                build out network struct with every block
+                if start point 0 read all the memory in a struct
+                if start != 0 then find which network the address belongs to 
+                use that network as start point and read until new end point for that block
+
+
+            */
+            //int end_range = (ip->octet_4 + (ip->subnet.incrementor[ip->subnet.network_bits-1] * (int) (ip->subnet.number_of_networks)) -1);
+            int end_range = (ip->octet_4 + (ip->subnet.incrementor[ip->subnet.network_bits-1] * 4) -1);
+
+            if (increment_by >= ip->octet_4 && increment_by < end_range) {
+            printf("net %d.%d.%d.%d gateway %d.%d.%d.%d first %d.%d.%d.%d last %d.%d.%d.%d bcast %d.%d.%d.%d\n", 
+                ip->octet_1, ip->octet_2, ip->octet_3, increment_by,
+                ip->octet_1, ip->octet_2, ip->octet_3, increment_by+1,
+                ip->octet_1, ip->octet_2, ip->octet_3, increment_by+2,
+                ip->octet_1, ip->octet_2, ip->octet_3, bcast-1,
+                ip->octet_1, ip->octet_2, ip->octet_3, bcast);
+            }
+        }
     }
 
 }
